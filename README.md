@@ -135,11 +135,11 @@ Example :
 
 
 ## Positional Encoding ( Representing Order of sequence )
-- Main Advantage of using transformer is : Word Token it can process parallely
+- Main Advantage of using transformer is : Word Token it can process parallaly
 - But the Drawback is : Lack of sequential structure of the words {Order}
-- Eg - 
-- 1. Lion kills tiger.
-- 2. Tiger kills lion.
+- Eg -  
+     1. Lion kills tiger.
+     2. Tiger kills lion.
 - Both the stenences are represneted with the same vectors. it does not take care of the ordering part.
 - In order to prevent that Positional Encoding is used. which represent the order of sequence.
 ### Types of Position Encoding
@@ -166,4 +166,133 @@ Example :
     - Batch Normalization
     - Layer Normalization
 
+### Normalization 
+- Standard Scaling
+- What is the advantages of uisng Normalization ?
+    - Improved Training Stability => Not happens vanishing and exploding  Gradient Problem.
+    - Faster Convergence.
+    - Back Propagation - Stable Update
+- alpha and beta - Learned scale  and Shift parameters
+- Uses Layer Normalization
+
+### How to Calculate the Alpha and Beta
+1. Initilalized the Alpha and beta with some value
+2. Compute the mean and varianece(Sigma square)
+3. Normalized the input.
+4. Scale and Shift.
+
+## encoder Architecture [ Research Paper]
+in reasearch paper they have used 6 Encoder. Inside 1 Encoder ->
+1. input 
+2. Text Embedding( Embedding vector = 512 ) + Positional Encoding
+3. Multi-Head attension (8 layer)
+4. Layer Normalization
+5. Feed Forward NN (512 Hidden Node)
+
+    Q = 64, K = 64, V = 64
+
+### Residual Connection
+- It's a skip connection neural network. 
+- Why it used 
+    - Addressing the Vanishing Gradient Problem
+- How it helps in Addressing the Vanishing Gradient Problem
+    - Residual Connection create a short paths for gradient to flow directly through the network. Because of this Gradient remains sufficiently large.
+    - It improves the convergence. It will be faster.
+    - It enables training of deeper networks.
+
+### Why Feed Forward NN (ANN)
+- It Add Non Lineararity
+- Self Attension Captures the relationship between the tokens. It processes the relationship in such a way that each token can attend to every other token.
+Now, This feed Forward Network based on the token, each process each token independently. this helps in tranforming these representation furthers and allows the model to learn richer representation.
+- which makes more deeper learning.
+
+## Decoder in Transformers
+- The transformer decoder is responsible for generating the output sequence one token at a time, using the encoder's output and the previously generated tokens.
+### 3 main Component in Decoder
+1. Masked Multi Head Self Attension
+2. Multi Head Attension (Encoder Decoder Attension)
+3. Feed Forward Neural n/w
+
+####  Masked Multi Head Self Attension
+1. Input Embedding and  Positional Embedding
+2. Linear Projection for Q,K,V
+3. Scaled DOt Product Attension
+4. Mask Application => Try to understand this importance
+5. Multi-Head Attension
+6. Concatination and Final Linear Projection
+7. Residula Connection and Layer Normalization
+
+- Output Shifted Right - Zero Padding to the right side
+
+        input sequence              Output Sequence
+       [4 5 6 7]                  [1,2,3] => Make right side zero padding [1,2,3,0]
+
+        Output Embedding 
+        [
+        [0.1,0.2,0.3,0.4],
+        [0.5,0.6,0.7,0.8],
+        [0.9,1.0,1.1,1.2],
+        [0.0,0.0,0.0,0.0]
+        ]
+
+
+        output Embedding + Positional Embedding = output Embedding (Suppose positional Embedding is null maxtrix)
+- Linear Projection for Q,K and V
+    - Create query(Q), Key(K) and Value(V) Vectors
+    - WQ = WK = WV  = I
+    - Q = Output Embedding * WQ = Output Embedding 
+    - K = Output Embedding * WK = Output Embedding 
+    - V = Output Embedding * WV = Output Embedding 
+     Q= K = V  = Output Embedding
+- Scaled Dot Product Attention Calculation
+    - Scores = (Q*K')/Square_root(dk)    || dk = 4
+    - Scores =  
+                 [
+                    [0.3,0.7,1.1,0.0],
+                    [0.7,1.9,3.1,0.0],
+                    [1.1,3.1,5.1,0.0],
+                    [0.0,0.0,0.0,0.0]
+                ]
+- Masked Application
+    - Masking in the Transformer achitecture is essential for several reasons. It helps manage the structure of the sequence being processes ans ensures the model behaves correctly during traininig and inference.
+    - It helps managing the structure of the seqences being processed and ensures the models behaves correctly during training and Inferencing.
+    - Reason for masked application
+        - Handing vaiable length sequences with pad masking.
+        - To handle sequence of different length in batch
+        - To ensure that padding tokens, Which are added to amke sequences of uniform length, do not affect the model prediction.
+        - since we are using zero right padding, it will influence the attention mechanism. This will intern lead to incorrect and bias predictions. That is a reason we'll do masking.
+        - Two type of masking  
+            1. Padding Mask 
+            2. Look Ahead Mask
+### Padding Mask
+- [4,5,0] ( ZERO IS PADDING ) -> [1,1,0] ( PADDING MASK )
+### Look ahead Mask
+- Maintain Auto Regression Property
+- To ensure that each position in the decoder output seqnece can only attens to previous position, but not future position.
+- Sequence -> Language Modelling, Translation. 
+### Combined Mask
+### Masked Score
+- Masked Score = Score * Combined Mask
+### Softmax
+- Score = softmax(Masked Scores)
+## Multi-Head Attension in Decoder (Encoder and Decoder Multi Head Attension)
+- Three input is going to the Multi-Head Attension of Decoder
+- 2 input as => Key(K),Value(V) are comming from the Encoder part 
+- 1 Input as => Query(Q) is coming from the Masked multi head Attension from Decoder Part
+- These are to be used by each decoder in its "encoder-decoder" attension layer =>  THis helps the decoder to focus on appropriate places in the input sequence.
+
+
+## The Final Linear and Softmax Layer
+![plot](./images/plot.png)
+### Linear Layer
+- The Linear Layer is a simple fully connected neaural n/w that projects the vectors produced by the stack of decoders.
+- It generates a very large vector , Also known as logits vector.
+- Each and every block in the logits vector, it corresponds to a score of a unique word.
+- If model has 10,000 vocabulary => then Logits Vectors has 10,000 cells wide
+## Softmax
+- Why Softmax Layer is used ?
+    - It is used for multi class classification.
+    - In Case of multi class classification , as soon as logits vector get passed. Every vector is going to give a log probability.
+    - The Output of the softmax is log_probs.
+- The softmax layer turns those scores into probabilities. The call with the highest probability is choosen and the word associated with it is produced as the output. => At that specific time stamp
 
